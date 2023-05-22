@@ -28,6 +28,7 @@ public class GameManager : MonoBehaviour
 
     void OnSwitch(InputValue value)
     {
+        Debug.Log("detected shift key pressed");
         if(isReality == true)
         {
             isImagination = true;

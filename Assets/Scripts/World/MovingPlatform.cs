@@ -10,30 +10,37 @@ public class MovingPlatform : MonoBehaviour
     public int startingPoint;
     public bool existsInImagination;
     public bool existsInReality;
+    private Vector2 currentLocation;
+    BoxCollider2D collider;
+    SpriteRenderer sr;
 
     void Start()
     {
         transform.position = waypoints[startingPoint].position;
+        collider = GetComponent<BoxCollider2D>();
+        sr = GetComponent<SpriteRenderer>();
     }
 
     void Update()
     {
         MovePlatform();
-        TurnPlatformOnOrOffBasedOnWhichDimension();
+        PausePlatform();
     }
 
     void MovePlatform()
     {
-        if(Vector2.Distance(transform.position, waypoints[i].position) < 0.02f)
+        if((existsInImagination && GameManager.instance.isImagination) || (existsInReality && GameManager.instance.isReality))
         {
-            i++;
-            if(i == waypoints.Length)
+            if(Vector2.Distance(transform.position, waypoints[i].position) < 0.02f)
             {
-                i = 0;
+                i++;
+                if(i == waypoints.Length)
+                {
+                    i = 0;
+                }
             }
+            transform.position = Vector2.MoveTowards(transform.position, waypoints[i].position, moveSpeed * Time.deltaTime);
         }
-
-        transform.position = Vector2.MoveTowards(transform.position, waypoints[i].position, moveSpeed * Time.deltaTime);
     }
 
     private void OnCollisionEnter2D(Collision2D otherCollision)
@@ -49,18 +56,21 @@ public class MovingPlatform : MonoBehaviour
         otherCollision.transform.SetParent(null);
     }
 
-    void TurnPlatformOnOrOffBasedOnWhichDimension()
+    void PausePlatform()
     {
-        if(existsInReality)
-        {
-            GameManager.instance.isReality = false;
-            //might be a problem cause the object is off and cannot be re-turned on
-            this.gameObject.SetActive(false);
-        }
-        else
-        {
-            this.gameObject.SetActive(true);
-        }
-    }
+        bool isEnabled = false;
 
+        if (existsInReality && GameManager.instance.isReality)
+        {
+            isEnabled = true;
+        }
+        else if (existsInImagination && GameManager.instance.isImagination)
+        {
+            isEnabled = true;
+        }
+
+        collider.enabled = isEnabled;
+        sr.enabled = isEnabled;
+        
+    }
 }
