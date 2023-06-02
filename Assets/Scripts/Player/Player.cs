@@ -7,27 +7,98 @@ public class Player : MonoBehaviour
 {
     Animator anim;
     Rigidbody2D rb;
-    public float playerMoveSpeed;
     Vector2 moveInput;
+    public LayerMask groundLayer;
+    SpriteRenderer sr;
+    private float currentHorizontalSpeed;
+    // private float currentVerticalSpeed;
 
     [Header("Jumping")]
     private bool isGrounded;
-    public float jumpSpeed;
+    public float groundCheckDistance;
+    public float jumpForce;
+    public float airJumpForce;
+    private float apexPoint;
+    private float jumpApexThreshold = 50f;
+    public float apexBonus;
     public int jumpAmount;
-    private int currentJumpAmount;
+    int currentJumpAmount;
+    public float peakJumpGravity;
+    public float groundCheckDistanceBuffer;
 
+    private float coyoteTime = 0.25f;
+    private float coyoteTimeCounter;
+
+    //jump checkers
+    private bool jumped = false;
+    private bool airJumped = false;
+    private bool coyoteJumping = false;
+
+    [Header("Running")]
+    public float acceleration;
+    public float decceleration;
+    public float movementClamp;
+
+    // [Header("Dashing")]
+    // public float dashForce;
+
+    [Header("SFX")]
+    public int groundJumpSFX;
+
+    [Header("Shoot")]
+    public Transform shootPosition;
+    public GameObject banana;
+    private bool bananaAvailable;
+    public Vector3 mousePos;
+    Vector3 locationToShoot;
+
+    //TODO:
+    //Squash and stretch done sorta
+    //detect block above head to push player
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
+        sr = GetComponent<SpriteRenderer>();
         currentJumpAmount = jumpAmount;
+        bananaAvailable = true;
     }
 
     void Update()
     {
-        Move();
         FlipSprite();
+    }
+
+    void FixedUpdate()
+    {
+        Move();
+        CoyoteTiming();
+        CalculateJumpApex();
+        GravityAtApex();
+        CheckIfGrounded();
+    }
+
+    void FlipSprite()
+    {
+        if(moveInput.x < 0)
+        {
+            sr.flipX = true;
+        }
+        if(moveInput.x > 0)
+        {
+            sr.flipX = false;
+        }
+
+        bool playerHasHorizontalSpeed = Mathf.Abs(rb.velocity.x) > Mathf.Epsilon;
+        if(playerHasHorizontalSpeed)
+        {
+            anim.SetBool("isMoving", true);
+        }
+        else
+        {
+            anim.SetBool("isMoving", false);
+        }
     }
 
     void OnMove(InputValue value)
@@ -37,40 +108,205 @@ public class Player : MonoBehaviour
 
     void Move()
     {
-        Vector2 playerVelocity = new Vector2(moveInput.x * playerMoveSpeed, rb.velocity.y);
-        rb.velocity =  playerVelocity;
-    }
-    
-    void FlipSprite()
-    {
-        bool playerHasHorizontalSpeed = Mathf.Abs(rb.velocity.x) > Mathf.Epsilon;
-        if(playerHasHorizontalSpeed)
+        if(moveInput.x != 0)
         {
-            transform.localScale = new Vector2(Mathf.Sign(rb.velocity.x), 1f);
-            anim.SetBool("isMoving", true);
+            currentHorizontalSpeed += moveInput.x * acceleration * Time.deltaTime;
+            currentHorizontalSpeed = Mathf.Clamp(currentHorizontalSpeed, -movementClamp, movementClamp);
+
+            //apply bonus speed at apex of jump here
+            var apexBonusAtPeak = Mathf.Sign(moveInput.x) * apexBonus * apexPoint;
+            currentHorizontalSpeed += apexBonus * Time.deltaTime;
         }
         else
         {
-            anim.SetBool("isMoving", false);
+            currentHorizontalSpeed = Mathf.MoveTowards(currentHorizontalSpeed, 0, decceleration * Time.deltaTime);
         }
+
+        rb.velocity = new Vector2(currentHorizontalSpeed, rb.velocity.y);        
     }
 
     void OnJump(InputValue value)
     {
-        if(value.isPressed && currentJumpAmount > 0)
+        if(isGrounded)
         {
-            currentJumpAmount--;
-            rb.velocity += new Vector2(0f, jumpSpeed);
-            Debug.Log("Jumped!");
-            Debug.Log(currentJumpAmount);
+            Debug.Log("Grounded jump");
+            Jump();
+        }
+
+        //coyote grace period checker
+        else if(coyoteTimeCounter > 0 && currentJumpAmount == jumpAmount)
+        {
+            Debug.Log("Coyote jump!");
+
+            coyoteJumping = true;
+            rb.velocity = new Vector2(rb.velocity.x, 0f);
+            Jump();
+        }
+        //regular air jumping
+        else if((currentJumpAmount > 0 && !isGrounded))
+        {
+            RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, groundCheckDistanceBuffer, groundLayer);
+            if(hit)
+            {
+                Debug.Log("Close enough to the ground");
+                StartCoroutine(JumpWhenGroundedFrame1());
+            }
+            else
+            {
+                Debug.Log("Air jumped");
+                currentJumpAmount--;
+                AirJump();
+            }
+
+        }
+        
+        //check if they are trying to buffer a jump
+        else if(!isGrounded)
+        {
+            JumpBuffer();
         }
     }
 
-    void OnCollisionEnter2D(Collision2D otherCollision)
+    void Jump()
     {
-        if(otherCollision.gameObject.layer == LayerMask.NameToLayer("Ground") && currentJumpAmount < jumpAmount)
+        //QoL
+        anim.SetTrigger("jump");
+        AudioManager.instance.PlaySFX(groundJumpSFX);
+
+        //actual code to jump
+        rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+        jumped = true;
+        currentJumpAmount--;
+    }
+
+    void AirJump()
+    {
+        //QoL
+        anim.SetTrigger("jump");
+        AudioManager.instance.PlaySFX(groundJumpSFX);
+
+        // Reset y velocity so that the double jump is consistent with regular jump
+        rb.velocity = new Vector2(rb.velocity.x, 0f);
+        rb.AddForce(Vector2.up * airJumpForce, ForceMode2D.Impulse);
+        airJumped = true;
+    }
+
+    void JumpBuffer()
+    {
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, groundCheckDistanceBuffer, groundLayer);
+
+        //ground detected
+        if(hit)
         {
+            Debug.Log("Buffered Correctly");
+            StartCoroutine(JumpWhenGroundedFrame1());
+        }
+        else
+        {
+            Debug.Log("Player tried to buffer to early");
+        }
+    }
+
+    void CoyoteTiming()
+    {
+        if(isGrounded)
+        {
+            coyoteTimeCounter = coyoteTime;
+        }
+        else
+        {
+            coyoteTimeCounter -= Time.deltaTime;
+        }
+    }
+
+    void CalculateJumpApex()
+    {
+        if(!isGrounded && jumped)
+        {
+            apexPoint = Mathf.InverseLerp(jumpApexThreshold, 0, Mathf.Abs(rb.velocity.y));
+        }
+        else
+        {
+            apexPoint = 0;
+        }
+    }
+
+    void GravityAtApex()
+    {
+        if(rb.velocity.y < 0)
+        {
+            rb.gravityScale = peakJumpGravity;
+        }
+        else
+        {
+            rb.gravityScale = 2.5f;
+        }
+    }
+
+
+    void CheckIfGrounded()
+    {
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, groundCheckDistance, groundLayer);
+        if(hit.collider != null)
+        {
+            Debug.Log("HIT!");
+            //TODO: fix when to play the ladning animation, currently it also plays when the player jumps
+            // if(jumped || airJumped || !isGrounded && currentJumpAmount == jumpAmount)
+            // {
+            //     Debug.Log("play squish animation");
+            //     Debug.Log("jumped is:" + jumped);
+            //     Debug.Log("airJumped is:" + airJumped);
+            //     Debug.Log("isGrounded is:" + isGrounded);
+            //     Debug.Log("currentJumpAmountIs:" + currentJumpAmount);
+            // }
+            isGrounded = true;
             currentJumpAmount = jumpAmount;
+            if(jumped)
+            {
+                Debug.Log("jumped turned false");
+                jumped = false;
+            }
+            if(airJumped)
+            {
+                airJumped = false;
+            }
+            if(coyoteJumping)
+            {
+                coyoteJumping = false;
+            }
+
+        }
+        else
+        {
+            isGrounded = false;
+        }
+    }
+
+    IEnumerator JumpWhenGroundedFrame1()
+    {
+        while(!isGrounded)
+        {
+            yield return null;
+        }
+
+        Jump();
+        Debug.Log("Launched");
+    }
+
+    // void OnDash(InputValue value)
+    // {
+    //     Vector2 dashDirection = new Vector2(moveInput.x, moveInput.y);
+    //     rb.velocity = dashDirection * dashForce;
+    //     Debug.Log("called!");
+    // }
+
+    void OnFire(InputValue value)
+    {
+        if(bananaAvailable)
+        {
+            mousePos = Mouse.current.position.ReadValue();
+            Instantiate(banana, shootPosition);
+            bananaAvailable = false;
         }
     }
 

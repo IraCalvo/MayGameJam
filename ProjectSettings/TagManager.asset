@@ -3,7 +3,8 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 2
-  tags: []
+  tags:
+  - Ground
   layers:
   - Default
   - TransparentFX
@@ -40,4 +41,25 @@ TagManager:
   m_SortingLayers:
   - name: Default
     uniqueID: 0
+    locked: 0
+  - name: Player
+    uniqueID: 705083627
+    locked: 0
+  - name: NPC/Enemy
+    uniqueID: 2506986203
+    locked: 0
+  - name: Background
+    uniqueID: 1511158847
+    locked: 0
+  - name: imaginationTiles
+    uniqueID: 969059299
+    locked: 0
+  - name: realityTiles
+    uniqueID: 3202793049
+    locked: 0
+  - name: imaginationDecoration
+    uniqueID: 3216102491
+    locked: 0
+  - name: realityDecoration
+    uniqueID: 2205899249
     locked: 0

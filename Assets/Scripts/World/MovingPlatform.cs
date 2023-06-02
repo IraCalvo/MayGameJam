@@ -11,14 +11,13 @@ public class MovingPlatform : MonoBehaviour
     public bool existsInImagination;
     public bool existsInReality;
     private Vector2 currentLocation;
-    BoxCollider2D collider;
-    SpriteRenderer sr;
+    BoxCollider2D PlatformCollider;
+    public SpriteRenderer[] sr;
 
     void Start()
     {
         transform.position = waypoints[startingPoint].position;
-        collider = GetComponent<BoxCollider2D>();
-        sr = GetComponent<SpriteRenderer>();
+        PlatformCollider = GetComponent<BoxCollider2D>();
     }
 
     void Update()
@@ -69,8 +68,8 @@ public class MovingPlatform : MonoBehaviour
             isEnabled = true;
         }
 
-        collider.enabled = isEnabled;
-        sr.enabled = isEnabled;
+        PlatformCollider.enabled = isEnabled;
+        sr[sr.Length].enabled = isEnabled;
         
     }
 }

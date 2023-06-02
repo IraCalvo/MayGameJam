@@ -12,6 +12,8 @@ public class GameManager : MonoBehaviour
     public static GameManager instance;
     public Tilemap realityTiles;
     public Tilemap imaginationTiles;
+    public GameObject realityBackground;
+    public GameObject imaginationBackground;
 
     void Awake()
     {
@@ -24,6 +26,8 @@ public class GameManager : MonoBehaviour
         realityTiles.gameObject.SetActive(true);
         isImagination = false;
         imaginationTiles.gameObject.SetActive(false);
+        imaginationBackground.gameObject.SetActive(false);
+        realityBackground.gameObject.SetActive(true);
     }
 
     void OnSwitch(InputValue value)
@@ -36,6 +40,9 @@ public class GameManager : MonoBehaviour
             isReality = false;
             imaginationTiles.gameObject.SetActive(true);
             Debug.Log("welcome to your imagination!");
+            realityBackground.gameObject.SetActive(false);
+            imaginationBackground.gameObject.SetActive(true);
+
         }
         else
         {
@@ -44,6 +51,8 @@ public class GameManager : MonoBehaviour
             isReality = true;
             imaginationTiles.gameObject.SetActive(false);
             Debug.Log("welcome back to reality.");
+            realityBackground.gameObject.SetActive(true);
+            imaginationBackground.gameObject.SetActive(false);
         }
     }
 }
