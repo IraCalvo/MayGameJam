@@ -5,6 +5,7 @@ using UnityEngine.InputSystem;
 
 public class Player : MonoBehaviour
 {
+    public CameraManager followCam;
     Animator anim;
     Rigidbody2D rb;
     public float playerMoveSpeed;
@@ -15,6 +16,7 @@ public class Player : MonoBehaviour
     public float jumpSpeed;
     public int jumpAmount;
     private int currentJumpAmount;
+    public List<GameObject> npcCollisions = new List<GameObject>();
 
 
     void Start()
@@ -71,6 +73,24 @@ public class Player : MonoBehaviour
         if(otherCollision.gameObject.layer == LayerMask.NameToLayer("Ground") && currentJumpAmount < jumpAmount)
         {
             currentJumpAmount = jumpAmount;
+        }
+    }
+
+    void OnCollisionExit2D(Collision2D otherCollision)
+    {
+    }
+
+    void OnCam(InputValue value) {
+        Debug.Log("Switch camera");
+        followCam.switchCamera();
+    }
+
+    void OnInteract(InputValue value) {
+        Debug.Log("Searching Interactions");
+        foreach (GameObject npcGameObject in npcCollisions)
+        {
+            Charles charles = (Charles) npcGameObject.GetComponent<Charles>();
+            charles.showDialogue();
         }
     }
 
