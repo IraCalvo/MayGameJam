@@ -11,6 +11,7 @@ public class Player : MonoBehaviour
     public LayerMask groundLayer;
     SpriteRenderer sr;
     private float currentHorizontalSpeed;
+    Camera camera;
     // private float currentVerticalSpeed;
 
     [Header("Jumping")]
@@ -46,15 +47,18 @@ public class Player : MonoBehaviour
     public int groundJumpSFX;
 
     [Header("Shoot")]
-    public Transform shootPosition;
     public GameObject banana;
     private bool bananaAvailable;
-    public Vector3 mousePos;
-    Vector3 locationToShoot;
 
     //TODO:
     //Squash and stretch done sorta
     //detect block above head to push player
+    //fix coyote triple jump
+
+    void Awake()
+    {
+        camera = Camera.main;
+    }
 
     void Start()
     {
@@ -100,6 +104,7 @@ public class Player : MonoBehaviour
             anim.SetBool("isMoving", false);
         }
     }
+
 
     void OnMove(InputValue value)
     {
@@ -304,10 +309,18 @@ public class Player : MonoBehaviour
     {
         if(bananaAvailable)
         {
-            mousePos = Mouse.current.position.ReadValue();
-            Instantiate(banana, shootPosition);
+            GameObject newBoomerang = Instantiate(banana, transform.position, Quaternion.identity);
+
+            Vector3 shootLocation = Mouse.current.position.ReadValue();
+            Vector3 worldMousePosition = camera.ScreenToWorldPoint(shootLocation);
+            Vector3 direction = (worldMousePosition - transform.position).normalized;
+
+            Boomerang boomerang = newBoomerang.GetComponent<Boomerang>();
+            boomerang.Fire(direction);
+
             bananaAvailable = false;
         }
+
     }
 
 }

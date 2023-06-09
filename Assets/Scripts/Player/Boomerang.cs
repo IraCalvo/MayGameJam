@@ -8,19 +8,17 @@ public class Boomerang : MonoBehaviour
     public float travelSpeed;
     public float maxTimeOut;
     private float currentTimeOut;
-    public GameObject player;
+    private Vector3 fireDirection;
 
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         transform.SetParent(null);
-        player = FindObjectOfType<Player>().gameObject;
     }
 
     // Update is called once per frame
     void Update()
     {
-        rb.velocity = transform.right * travelSpeed;
 
         currentTimeOut -= Time.deltaTime;
         if(currentTimeOut >= maxTimeOut)
@@ -31,7 +29,7 @@ public class Boomerang : MonoBehaviour
 
     void FixedUpdate()
     {
-        transform.position = Vector3.MoveTowards(transform.position, player.mousePos.position, travelSpeed * Time.deltaTime);
+        rb.velocity = fireDirection * travelSpeed;
     }
 
     void returnToPlayer()
@@ -39,10 +37,23 @@ public class Boomerang : MonoBehaviour
 
     }
 
-    private void OnTriggerEnter2D(Collider2D other) 
+    public void Fire(Vector3 direction)
     {
-        returnToPlayer();   
+        fireDirection = direction;
     }
 
+    private void OnTriggerEnter2D(Collider2D otherCollider) 
+    {
+        if(otherCollider.gameObject.tag == "Enemy")
+        {
+            //damage calculations here
+
+            returnToPlayer();
+        }
+        else
+        {
+            returnToPlayer();   
+        }
+    }
 
 }
